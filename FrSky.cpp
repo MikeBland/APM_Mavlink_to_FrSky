@@ -282,7 +282,7 @@ void FrSky::queueFrSkySport()
 			sportNext.valid = 1 ;
 		}
 		
-		if ( ++sportIndex > 19 )
+		if ( ++sportIndex > 20 )
 		{
 			sportIndex = 0 ;
 		}
