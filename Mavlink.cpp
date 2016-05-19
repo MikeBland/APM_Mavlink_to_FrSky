@@ -176,17 +176,22 @@ const int Mavlink::getTemp2()
 
 const float Mavlink::getGpsGroundSpeed()
 {
-   return gpsGroundSpeed; //* 0.0194384f;
+   return gpsGroundSpeed * 1000 ; //* 0.0194384f;
 }
 
 const float Mavlink::getAirspeed()
 {
-   return airspeed ;
+   return airspeed * 10 ;
 }
 
 const float Mavlink::getAltitude()
 {
    return altitude;
+}
+
+const float Mavlink::getVspd()
+{
+   return vspd ;
 }
 
 const int Mavlink::getTemp1()
@@ -543,7 +548,8 @@ int Mavlink::parseMessage(char c)
                 course = mavlink_msg_vfr_hud_get_heading(&msg); // 0..360 deg, 0=north
                 throttle = mavlink_msg_vfr_hud_get_throttle(&msg);
                 altitude = mavlink_msg_vfr_hud_get_alt(&msg); // meters
-            return MAVLINK_MSG_ID_VFR_HUD;
+								vspd = mavlink_msg_vfr_hud_get_climb(&msg) ;
+	            return MAVLINK_MSG_ID_VFR_HUD;
             }
             break;
             case MAVLINK_MSG_ID_ATTITUDE:
@@ -639,7 +645,8 @@ void Mavlink::reset()
    gpsGroundSpeed = 0;
    gpsCourse = 0;
    altitude = 0.0f;
-   alt = 0;
+   vspd = 0.0f ;
+	 alt = 0;
    apmMode = 99; // if no mavlink packets
 //   course = 0;
    throttle = 0;

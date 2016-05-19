@@ -270,6 +270,10 @@ void FrSky::queueFrSkySport()
 					id = 0xFFFF ;
 				}
 			break ;
+			case 20 :
+				value = ctelemetry.getVspd() * 100.0f ;
+				id = VARIO_FIRST_ID ;
+			break ;
 		}
 		if ( id != 0xFFFF )
 		{
@@ -325,6 +329,7 @@ void FrSky::sendFrSky5Hz()
 	addBufferData(TEMP1);
 	addBufferData(TEMP2);
 	addBufferData(ALTITUDE);
+	addBufferData(VSPD);
 	addBufferData(COURSE);
 	addBufferData(HOME_DIR);
 	addBufferData(CURRENT);
@@ -487,13 +492,19 @@ void FrSky::addBufferData(const char id)
 			return ;
 		}
 		break;
+		case VSPD :
+		{	
+			float vspd = ctelemetry.getVspd() * 100.0f ;
+			setBufferData( VSPD, vspd ) ;
+		}
+		break;
 		case GPSSPEED :
 		{
 			// GPS Ground speed in knots
 			// Seems like there is an offset of 1.84 for some reason
-			int gpsSpeed  = ctelemetry.getGpsGroundSpeed(); // / 1.84f;
-			setBufferData( GPSSPEED, gpsSpeed ) ;
-			unsigned int temp = (unsigned int)((gpsSpeed - (int)gpsSpeed) * 1000.0f);
+			int gpsSpeed  = ctelemetry.getGpsGroundSpeed() ; // / 1.84f;
+			setBufferData( GPSSPEED, gpsSpeed / 1000 ) ;
+			unsigned int temp = (unsigned int)((gpsSpeed - (int)gpsSpeed) * 1000 ) ;
 			setBufferData( GPSSPEED + decimal, temp ) ;
 			return ;
 		}
@@ -726,7 +737,7 @@ void FrSky::addBufferData(const char id)
 		break;
 		case AIRSPEED :
 		{
-			unsigned int airspeed = ctelemetry.getAirspeed() * 10.0f ;
+			unsigned int airspeed = ctelemetry.getAirspeed() ;
 			setBufferData( AIRSPEED, airspeed ) ;
 			return ;
 		}

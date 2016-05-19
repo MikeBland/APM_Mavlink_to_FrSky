@@ -108,7 +108,7 @@ enum gcs_severity {
 #define CURRENT        0x28 
 //#define unused       0x29
 //#define unused       0x2A
-//#define FR_VSPD        0x30 // 0x30 -> 0x27
+#define VSPD        0x30 // 0x30 -> 0x27
 
 #define AIRSPEED	     0x38
 

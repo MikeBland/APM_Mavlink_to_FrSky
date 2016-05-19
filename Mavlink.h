@@ -60,6 +60,7 @@ public:
    const int       getFuelLevel();
    const int       getTemp2();
    const float     getAltitude();
+   const float     getVspd();
    const float     getGpsGroundSpeed();
 	 const float		 getAirspeed() ;
    long				     getLongitud();
@@ -131,6 +132,7 @@ private:
    float           gpsGroundSpeed;
    float           gpsCourse;
    float           altitude;
+   float           vspd ;
    float           airspeed;
    int             apmBaseMode;
    int             course;
