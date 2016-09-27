@@ -27,6 +27,8 @@ static volatile uint8_t SwUartRXData ;           //!< Storage for received bits.
 static volatile uint8_t SwUartRXBitCount ;       //!< RX bit counter.
 static volatile uint8_t TxCount ;
 
+extern uint8_t SportInTx ;
+
 
 //For Frsky only
 uint8_t ByteStuffByte = 0 ;
@@ -70,9 +72,9 @@ ISR(TIMER1_COMPA_vect)
 		{
 		// Transmit Byte.
 		  case TRANSMIT :		// Output the TX buffer.
-//#if DEBUG
-//	PORTC |= 1 ;
-//#endif
+#if DEBUG
+	PORTC |= 1 ;
+#endif
     		if( SwUartTXBitCount < 8 )
 				{
     		  if( SwUartTXData & 0x01 )
@@ -92,14 +94,52 @@ ISR(TIMER1_COMPA_vect)
     	  	state = TRANSMIT_STOP_BIT;
     		}
 		  	OCR1A += TICKS2WAITONESPORT ;  // Count one period into the future.
-//#if DEBUG
-//	PORTC &= ~1 ;
-//#endif
+#if DEBUG
+	PORTC &= ~1 ;
+#endif
 	  	break ;
 
 	  // Go to idle after stop bit was sent.
 		  case TRANSMIT_STOP_BIT:
-     		if ( ByteStuffByte || (++TxCount < 8 ) )		// Have we sent 8 bytes?
+				if ( TxCount >= 16 )
+				{
+					if ( TxCount == 16 )
+					{
+						SwUartTXData = 0x98 ;
+			      SET_TX_PIN() ;                // Send a logic 0 on the TX_PIN.
+				  	OCR1A += TICKS2WAITONESPORT ;      // Count one period into the future.
+					  SwUartTXBitCount = 0 ;
+					  state = TRANSMIT ;
+						TxCount = 17 ;
+					}
+					else
+					{
+         		if ( sportDataLock == 0 )
+						{
+              TxSportData[0] = sportData[0] ;
+              TxSportData[1] = sportData[1] ;
+              TxSportData[2] = sportData[2] ;
+              TxSportData[3] = sportData[3] ;
+              TxSportData[4] = sportData[4] ;
+              TxSportData[5] = sportData[5] ;
+              TxSportData[6] = sportData[6] ;
+			      }
+			      else
+			      {	// Discard frame to be sent if data is locked
+              TxSportData[0] = 0 ;
+              TxSportData[1] = 0 ;
+              TxSportData[2] = 0 ;
+              TxSportData[3] = 0 ;
+              TxSportData[4] = 0 ;
+              TxSportData[5] = 0 ;
+              TxSportData[6] = 0 ;
+            }
+						state = TxPENDING ;
+            sendStatus = SENDING ;
+						OCR1A += (50*16-TICKS2WAITONESPORT) ;		// 50 uS gap before sending
+					}
+				}
+     		else if ( ByteStuffByte || (++TxCount < 8 ) )		// Have we sent 8 bytes?
      		{
      			if ( ByteStuffByte )
           {
@@ -246,7 +286,18 @@ PORTB ^= 0x10 ;	// debug
           } // End receiving  1 bit or 1 byte (8 bits)
 				}
 		  break ;
-  
+
+      case TxPOLL :
+				TRXDDR |= ( 1 << RX_PIN ) ;       // PIN is output
+	      SET_TX_PIN() ;                    // Send a logic 0 on the TX_PIN.
+		  	OCR1A = TCNT1 + TICKS2WAITONESPORT ;   // Count one period into the future.
+			  SwUartTXBitCount = 0 ;
+				SwUartTXData = 0x7E ;
+				ByteStuffByte = 0 ;
+				TxCount = 16 ;
+			  state = TRANSMIT ;
+	  	break ;
+
 			case TxPENDING :
 //#if DEBUG
 //	PORTC |= 1 ;
@@ -266,8 +317,11 @@ PORTB ^= 0x10 ;	// debug
 			case WAITING :
 		   	DISABLE_TIMER_INTERRUPT() ;		// Stop the timer interrupts.
 		    state = IDLE ;                // Go back to idle.
-				PCIFR = (1<<PCIF2) ;					// clear pending interrupt
-				PCICR |= (1<<PCIE2) ;					// pin change interrupt enabled
+				if ( SportInTx == 0 )
+				{
+					PCIFR = (1<<PCIF2) ;					// clear pending interrupt
+					PCICR |= (1<<PCIE2) ;					// pin change interrupt enabled
+				}
 			break ;
 
   // Unknown state.
@@ -288,18 +342,18 @@ PORTB ^= 0x10 ;	// debug
     		{
       	  if( SwUartTXData & 0x01 )
     			{           // If the LSB of the TX buffer is 1:
-      	  	CLEAR_TX_PIN() ;                    // Send a logic 1 on the TX_PIN.
+      	  	CLEAR_HUB_TX_PIN() ;                    // Send a logic 1 on the TX_PIN.
       	  }
       	  else
     			{                                // Otherwise:
-      	  	SET_TX_PIN() ;                      // Send a logic 0 on the TX_PIN.
+      	  	SET_HUB_TX_PIN() ;                      // Send a logic 0 on the TX_PIN.
       	  }
       	  SwUartTXData = SwUartTXData >> 1 ;    // Bitshift the TX buffer and
       	  SwUartTXBitCount += 1 ;               // increment TX bit counter.
       	}
       	else		//Send stop bit.
     		{
-      	  CLEAR_TX_PIN();                         // Output a logic 1.
+      	  CLEAR_HUB_TX_PIN();                         // Output a logic 1.
       	  state = TRANSMIT_STOP_BIT;
       	      //ENABLE_TIMER0_INT() ;	                  // Allow this in now.
       	}
@@ -315,7 +369,7 @@ PORTB ^= 0x10 ;	// debug
 				if ( ++TxCount < TxMax) 		// Have we sent all bytes?
 				{
     		  SwUartTXData = PtrTxHubData[TxCount] ;			        
-    		  SET_TX_PIN() ;                        // Send a logic 0 on the TX_PIN.
+    		  SET_HUB_TX_PIN() ;                        // Send a logic 0 on the TX_PIN.
 	  		  OCR1A = TCNT1 + TICKS2WAITONEHUB ;       // Count one period into the future.
 				  SwUartTXBitCount = 0 ;
 				  state = TRANSMIT ;
@@ -350,7 +404,7 @@ PORTB ^= 0x10 ;	// debug
 
 //brief  Function to initialize the UART for Sport protocol
 //  This function will set up pins to transmit and receive on. Control of Timer0 and External interrupt 0.
-void initSportUart(  )           //*************** initialise UART pour SPORT
+void initSportUart( uint8_t mode )           //*************** initialise UART pour SPORT
 {
 //    FirstData = ThisSportData = pdata ;
     
@@ -368,16 +422,19 @@ void initSportUart(  )           //*************** initialise UART pour SPORT
   #error "This PIN is not supported"
 #endif
 
-  PCIFR = (1<<PCIF2) ;	// clear pending interrupt
-  PCICR |= (1<<PCIE2) ;	// pin change interrupt enabled
+	if ( mode == 0 )
+	{
+  	PCIFR = (1<<PCIF2) ;	// clear pending interrupt
+  	PCICR |= (1<<PCIE2) ;	// pin change interrupt enabled
+	}
 
     // Internal State Variable
   state = IDLE ;
 
-#if DEBUGASERIAL
+//#if DEBUGASERIAL
   DDRC = 0x03 ;		// PC0,1 as o/p debug
   PORTC = 0 ;
-#endif
+//#endif
 
 }
 
@@ -464,14 +521,24 @@ void sendHubData( uint8_t *buffer, uint8_t length )
 //  }    
 //}
 
+void startSportTransmit()
+{
+	cli() ;
+	OCR1A = TCNT1 + 50*16 ;   // 50uS.
+ 	CLEAR_TIMER_INTERRUPT() ;         // Clear interrupt bits
+	sei() ;
+	state = TxPOLL ;
+ 	ENABLE_TIMER_INTERRUPT() ;        // Enable timer1 interrupt on again
+}
+
+
 void startHubTransmit()
 {
 	if ( state != IDLE )
 	{
 		return ;
 	}
-	cli() ;
-  SET_TX_PIN() ;                    // Send a logic 0 on the TX_PIN.
+  SET_HUB_TX_PIN() ;                    // Send a logic 0 on the TX_PIN.
 	OCR1A = TCNT1 + TICKS2WAITONEHUB ;   // Count one period into the future.
  	CLEAR_TIMER_INTERRUPT() ;         // Clear interrupt bits
 	sei() ;

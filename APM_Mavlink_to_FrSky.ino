@@ -36,12 +36,14 @@
 #include "FrSky.h"
 //#include "SimpleFIFO.h"
 #include "GCS_MAVLink.h"
+#include "Aserial.h"
 
 #define NOINLINE __attribute__ ((noinline))
 
 // temporary
 extern void initHubUart( ) ;
-extern void initSportUart( ) ;
+extern void initSportUart( uint8_t mode ) ;
+extern void startSportTransmit() ;
 
 uint32_t micros( void ) ;
 uint32_t millis( void ) ;
@@ -50,6 +52,7 @@ volatile byte ActionFrskySend = 0 ;
 volatile bool sportAvailable = 0 ;
 uint8_t SendVfas ;
 uint8_t SendCell ;
+uint8_t SportInTx ;
 
 uint16_t MillisPrecount ;
 uint16_t lastTimerValue ;
@@ -234,9 +237,22 @@ void setup()
    // FrSky data port pin 6 rx, 5 tx
 //   frSkySerial = new SoftwareSerial(6, 5, true);
 //   frSkySerial->begin(9600);
-	
+
+// Port D bits:
+// Bit 2 open hub, closed SPort
+// Bit 3 open = Send Vfas value
+// Bit 4 closed = send pseudo cells
+// Bit 5 is used for the hub/SPort serial data output
+// Bit 6 closed = SPort used in Tx (send 7E 98 before data)
+
+
 	DDRB |= 0x38 ;
 
+	if ( ( PIND & 0x40 ) == 0 )
+	{
+		SportInTx	= 1 ;
+	}
+	
 	if ( PIND & 0x04 )
 	{
 		initHubUart( ) ;
@@ -244,7 +260,7 @@ void setup()
 	else
 	{
 		sportAvailable = 1 ;
-		initSportUart() ;
+		initSportUart( SportInTx ) ;
 	}
 	
 	if ( PIND & 0x08 )
@@ -256,7 +272,7 @@ void setup()
 	{
 		SendCell = 1 ;
 	}
-		 
+
    // Incoming data from APM
 	initUart() ;
 //   Serial.begin(57600);
@@ -371,7 +387,12 @@ void loop()
 
   processData();
 
-	unsigned long lm = LastMillis + 125 ;
+	uint8_t delayTime = 125 ;
+	if ( SportInTx )
+	{
+		delayTime = 24 ;
+	}
+	unsigned long lm = LastMillis + delayTime ;
   if (millis() >= lm )
 	{
 		LastMillis = lm ;
@@ -379,12 +400,21 @@ void loop()
 		{
 			sendFrSkyData() ;
 		}
+		if ( SportInTx )
+		{
+			if ( sendStatus == LOADED )
+			{
+				startSportTransmit() ;				
+			}
+		}
 	}	
 		
 	if ( sportAvailable )
 	{
     frSky.queueFrSkySport() ;
 	}
+
+
 }
 
 #define FRSKY_PENDING_5HZ		0x01

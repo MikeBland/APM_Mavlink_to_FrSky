@@ -14,6 +14,8 @@
 
 #include <Arduino.h>
 
+//#define NON_INVERTED_HUB_SERIAL 1
+
 struct t_sportData
 {
 	struct t_sportData *next ;
@@ -45,6 +47,7 @@ void startHubTransmit( void ) ;
 #define RX_PIN           	5    //!< Receive data pin
 
 extern volatile bool sportAvailable ;
+extern uint8_t volatile sendStatus ;
 
 uint32_t micros( void ) ;
 uint32_t millis( void ) ;
@@ -64,6 +67,7 @@ uint32_t millis( void ) ;
 #define   RECEIVE            3        // Receiving byte.
 #define	  TxPENDING          4
 #define	  WAITING            5
+#define	  TxPOLL						 6
 
 
 // 57600 = Desired baudrate for Sport protocol = 17 micro sec per bit.
@@ -195,7 +199,13 @@ uint32_t millis( void ) ;
 #define CLEAR_TX_PIN( )  ( TRXPORT &= ~( 1 << PIN_SERIALTX ) )
 #define GET_RX_PIN( )    ( TRXPIN & ( 1 << PIN_SERIALTX ) )
 
-
+#ifdef NON_INVERTED_HUB_SERIAL
+#define SET_HUB_TX_PIN( )		 ( TRXPORT &= ~( 1 << PIN_SERIALTX ) )
+#define CLEAR_HUB_TX_PIN( )	 ( TRXPORT |= ( 1 << PIN_SERIALTX ) )
+#else
+#define SET_HUB_TX_PIN( )    ( TRXPORT |= ( 1 << PIN_SERIALTX ) )
+#define CLEAR_HUB_TX_PIN( )  ( TRXPORT &= ~( 1 << PIN_SERIALTX ) )
+#endif
 
 
 
