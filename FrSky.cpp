@@ -47,6 +47,7 @@ extern Mavlink ctelemetry ;
 extern uint8_t volatile sendStatus ;
 extern uint8_t SendVfas ;
 extern uint8_t SendCell ;
+extern uint8_t SportInTx ;
 
 FrSky::FrSky()
 {
@@ -274,6 +275,17 @@ void FrSky::queueFrSkySport()
 				value = ctelemetry.getVspd() * 100.0f ;
 				id = VARIO_FIRST_ID ;
 			break ;
+			case 21 :
+				if ( SportInTx )
+				{
+					value = ctelemetry.getRssi() ;
+					id = RSSI_ID ;
+				}
+				else
+				{
+					id = 0xFFFF ;
+				}
+			break ;
 		}
 		if ( id != 0xFFFF )
 		{
@@ -282,7 +294,7 @@ void FrSky::queueFrSkySport()
 			sportNext.valid = 1 ;
 		}
 		
-		if ( ++sportIndex > 20 )
+		if ( ++sportIndex > 21 )
 		{
 			sportIndex = 0 ;
 		}

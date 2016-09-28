@@ -89,6 +89,7 @@ public:
    const int       getStatus_msg();
    const int       getNCell();
    const int       getCell();
+   const unsigned char getRssi();
    const int       parse_msg();
    const bool      isArmed();
    void            setHomeVars();
@@ -153,6 +154,7 @@ private:
    char            last_message_text[50];
    unsigned int    ncell;
    unsigned int    cell;
+	 unsigned char	 rssi ;
 
 };
 #define MAV_SYS_STATUS_SENSOR_3D_GYRO 1 /* 0x01 3D gyro | */

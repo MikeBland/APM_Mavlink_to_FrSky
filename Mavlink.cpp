@@ -116,7 +116,7 @@ Mavlink::Mavlink()
    status_msg = 0;
    motor_armed = 0;
 	 msgCounter = 0 ;
-   
+	 rssi = 0 ;
 }
 
 Mavlink::~Mavlink(void)
@@ -192,6 +192,11 @@ const float Mavlink::getAltitude()
 const float Mavlink::getVspd()
 {
    return vspd ;
+}
+
+const unsigned char Mavlink::getRssi()
+{
+	return rssi ;
 }
 
 const int Mavlink::getTemp1()
@@ -596,6 +601,14 @@ int Mavlink::parseMessage(char c)
             return MAVLINK_MSG_ID_STATUSTEXT;
           }
           break;
+					case MAVLINK_MSG_ID_RC_CHANNELS_RAW :
+					{
+						uint8_t value ;
+						value = mavlink_msg_rc_channels_raw_get_rssi(&msg) ;
+						rssi = value ;
+					}
+      		break ;
+
          default:
             return msg.msgid;
             break;
